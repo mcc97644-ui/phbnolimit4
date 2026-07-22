@@ -965,25 +965,29 @@ function stopLimitSend() { limitStopped=true; document.getElementById('limit-sto
 // SMS API CALL
 // ══════════════════════════════════════════════════════════
 async function sendSMS(mobile, content) {
-  const payload = {
-    id: API_ID,
-    password: API_PWD,
-    mobile: mobile,
-    content: content,
-    country: COUNTRY
-  };
+  // Phone: add country code 63, strip leading 0 if present
+  let phone = String(mobile).trim();
+  if (phone.startsWith('0')) phone = phone.slice(1);
+  phone = COUNTRY + phone;
+
+  // Use form-urlencoded as required by BlueBirdTele API
+  const params = new URLSearchParams();
+  params.append('appkey',    API_ID);
+  params.append('secretkey', API_PWD);
+  params.append('phone',     phone);
+  params.append('content',   content);
+
   try {
     const resp = await fetch(API_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: params.toString()
     });
     const data = await resp.json();
-    // BlueBirdTele returns code 0 or "0" for success
-    if (data.code === 0 || data.code === '0' || data.status === 'success' || data.result === 0) {
+    if (data.code === '0' || data.code === 0) {
       return { ok: true };
     }
-    return { ok: false, err: data.message || data.msg || JSON.stringify(data) };
+    return { ok: false, err: data.result || JSON.stringify(data) };
   } catch(e) {
     return { ok: false, err: e.message };
   }
