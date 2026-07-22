@@ -1,0 +1,1009 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PHB SMS 群发工具</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
+  background: #f5f5f7; color: #1d1d1f;
+  min-height: 100vh; padding: 40px 16px 60px;
+}
+.container { width: 100%; max-width: 720px; margin: 0 auto; }
+.logo { font-size: 12px; font-weight: 600; color: #6e6e73; letter-spacing: .08em; text-transform: uppercase; margin-bottom: 6px; }
+h1 { font-size: 26px; font-weight: 600; color: #1d1d1f; margin-bottom: 4px; letter-spacing: -.3px; }
+.subtitle { font-size: 13px; color: #6e6e73; margin-bottom: 24px; }
+
+/* Tab nav */
+.tab-nav { display: flex; gap: 4px; background: #e8e8ed; padding: 4px; border-radius: 12px; margin-bottom: 24px; }
+.tab-nav-btn { flex: 1; padding: 9px; border-radius: 9px; border: none; background: none; font-family: inherit; font-size: 13px; font-weight: 500; color: #6e6e73; cursor: pointer; transition: all .15s; }
+.tab-nav-btn.active { background: #fff; color: #1d1d1f; box-shadow: 0 1px 4px rgba(0,0,0,.12); }
+
+/* Selector rows */
+.selector-group { margin-bottom: 20px; }
+.selector-label { font-size: 11px; font-weight: 600; color: #8e8e93; text-transform: uppercase; letter-spacing: .07em; margin-bottom: 8px; }
+.btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.pill-btn { padding: 9px 18px; border-radius: 10px; border: 1px solid #d2d2d7; background: #fff; color: #3a3a3c; font-size: 13px; font-weight: 500; font-family: inherit; cursor: pointer; transition: all .15s; white-space: nowrap; }
+.pill-btn:hover { border-color: #0071e3; color: #0071e3; }
+.pill-btn.active { background: #0071e3; border-color: #0071e3; color: #fff; }
+
+.plat-btn { padding: 9px 18px; border-radius: 10px; border: 1.5px solid #d2d2d7; background: #fff; font-size: 13px; font-weight: 600; font-family: inherit; cursor: pointer; transition: all .15s; }
+.plat-btn[data-p="P-2"]  { color: #c2410c; border-color: #fed7aa; }
+.plat-btn[data-p="D-9"]  { color: #1d4ed8; border-color: #bfdbfe; }
+.plat-btn[data-p="P-18"] { color: #15803d; border-color: #bbf7d0; }
+.plat-btn[data-p="P-2"].active  { background: #c2410c; border-color: #c2410c; color: #fff; }
+.plat-btn[data-p="D-9"].active  { background: #1d4ed8; border-color: #1d4ed8; color: #fff; }
+.plat-btn[data-p="P-18"].active { background: #15803d; border-color: #15803d; color: #fff; }
+
+/* Filename preview */
+.name-preview { background: #1c1c1e; border-radius: 10px; padding: 12px 16px; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.name-preview .pre-label { font-size: 11px; color: #8e8e93; white-space: nowrap; }
+.name-preview .pre-val { font-size: 14px; font-weight: 600; color: #ffd60a; font-family: 'SF Mono','Menlo',monospace; word-break: break-all; }
+
+/* Card */
+.card { background: #fff; border-radius: 16px; border: 1px solid #d2d2d7; padding: 22px; margin-bottom: 12px; }
+.card-title { font-size: 12px; font-weight: 600; color: #8e8e93; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 14px; }
+.divider { height: 1px; background: #f2f2f2; margin: 0 0 16px; }
+
+/* Two-col layout */
+.two-col { display: grid; grid-template-columns: 1fr 210px; gap: 16px; }
+@media (max-width: 560px) { .two-col { grid-template-columns: 1fr; } }
+
+/* Drop zone */
+.drop-zone { border: 1.5px dashed #c7c7cc; border-radius: 12px; padding: 24px 20px; text-align: center; cursor: pointer; transition: all .15s; background: #fafafa; margin-bottom: 14px; }
+.drop-zone:hover, .drop-zone.drag { border-color: #0071e3; background: #f0f6ff; }
+.drop-zone svg { margin-bottom: 8px; opacity: .4; }
+.drop-zone p { font-size: 14px; color: #3a3a3c; font-weight: 500; }
+.drop-zone .hint { font-size: 12px; color: #8e8e93; margin-top: 3px; }
+input[type=file] { display: none; }
+
+/* Info bars */
+.info-bar { display: none; align-items: center; gap: 8px; border-radius: 8px; padding: 9px 13px; font-size: 13px; margin-bottom: 10px; }
+.info-green  { background:#f0fff4; border:1px solid #34c759; color:#1c7430; }
+.info-purple { background:#f5f0ff; border:1px solid #af52de; color:#6b21a8; }
+.info-orange { background:#fff8e6; border:1px solid #ff9f0a; color:#7d4a00; }
+
+/* Number panel (shared) */
+.num-panel { background: #f9f9fb; border: 1px solid #e5e5ea; border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+.num-panel-title { font-size: 11px; font-weight: 600; color: #8e8e93; text-transform: uppercase; letter-spacing: .06em; }
+.num-input-row { display: flex; gap: 6px; }
+.num-input { flex: 1; padding: 8px 10px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 13px; font-family: 'SF Mono','Menlo',monospace; background: #fff; color: #1d1d1f; outline: none; }
+.num-input:focus { border-color: #0071e3; }
+.num-add-btn { padding: 8px 12px; border-radius: 8px; border: none; background: #0071e3; color: #fff; font-size: 13px; font-weight: 600; cursor: pointer; }
+.num-add-btn:hover { background: #0077ed; }
+.num-list { display: flex; flex-direction: column; gap: 4px; max-height: 180px; overflow-y: auto; }
+.num-list:empty::after { content: '暂无号码'; font-size: 12px; color: #c7c7cc; font-style: italic; }
+.num-tag { display: flex; align-items: center; justify-content: space-between; padding: 5px 8px; background: #e8f4ff; border: 1px solid #bfdbfe; border-radius: 6px; font-size: 12px; font-family: 'SF Mono','Menlo',monospace; color: #1d4ed8; }
+.num-del { background: none; border: none; color: #c7c7cc; cursor: pointer; font-size: 14px; line-height: 1; padding: 0 2px; }
+.num-del:hover { color: #ff3b30; }
+.num-count { font-size: 11px; color: #8e8e93; text-align: right; }
+
+/* Action buttons */
+.action-btn { width: 100%; padding: 11px; border: none; border-radius: 10px; font-size: 14px; font-weight: 600; font-family: inherit; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 7px; transition: all .15s; }
+.btn-blue   { background: #0071e3; color: #fff; }
+.btn-blue:hover:not(:disabled) { background: #0077ed; }
+.btn-blue:disabled { background: #b0c8f0; cursor: not-allowed; }
+.btn-green  { background: #34c759; color: #fff; }
+.btn-green:hover:not(:disabled) { background: #30b350; }
+.btn-green:disabled { background: #a0d9b0; cursor: not-allowed; }
+.btn-red    { background: #ff3b30; color: #fff; }
+.btn-red:hover:not(:disabled) { background: #e0342a; }
+
+/* Progress */
+.progress { display: none; margin-top: 12px; }
+.prog-label { font-size: 12px; color: #6e6e73; margin-bottom: 5px; }
+.prog-wrap  { background: #e8e8ed; border-radius: 99px; height: 5px; overflow: hidden; }
+.prog-bar   { height: 100%; border-radius: 99px; width: 0%; transition: width .3s ease; }
+.prog-blue  { background: #0071e3; }
+.prog-green { background: #34c759; }
+
+/* Result box */
+.result-box { display: none; margin-top: 12px; background: #f0fff4; border: 1px solid #34c759; border-radius: 10px; padding: 13px 15px; }
+.result-msg { font-size: 13px; color: #1c7430; font-weight: 500; }
+.result-sub { font-size: 12px; color: #2e7d32; margin-top: 2px; }
+.dl-btn { display: inline-flex; align-items: center; gap: 6px; margin-top: 8px; padding: 7px 14px; background: #34c759; color: #fff; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; font-family: inherit; cursor: pointer; margin-right: 6px; margin-bottom: 4px; }
+.dl-btn:hover { background: #30b350; }
+.dl-btn-blue { background: #0071e3; }
+.dl-btn-blue:hover { background: #0077ed; }
+.error-box { display: none; margin-top: 12px; background: #fff2f2; border: 1px solid #ff3b30; border-radius: 10px; padding: 11px 14px; font-size: 13px; color: #c0392b; }
+
+/* SMS specific */
+.template-preview { background: #1c1c1e; border-radius: 10px; padding: 14px 16px; margin-bottom: 16px; }
+.template-preview .tp-label { font-size: 10px; color: #8e8e93; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 8px; }
+.template-preview .tp-text { font-size: 13px; color: #f5f5f7; line-height: 1.6; font-family: 'SF Mono','Menlo',monospace; }
+.template-preview .tp-num { font-size: 11px; color: #636366; margin-top: 6px; }
+
+.sms-log { background: #f9f9fb; border: 1px solid #e5e5ea; border-radius: 10px; padding: 0; margin-top: 12px; max-height: 260px; overflow-y: auto; display: none; }
+.sms-log-header { padding: 10px 14px; border-bottom: 1px solid #e5e5ea; font-size: 11px; font-weight: 600; color: #8e8e93; text-transform: uppercase; letter-spacing: .06em; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; background: #f9f9fb; }
+.log-row { display: grid; grid-template-columns: 130px 1fr 70px; gap: 8px; padding: 8px 14px; border-bottom: 1px solid rgba(0,0,0,.04); font-size: 12px; align-items: center; }
+.log-row:last-child { border-bottom: none; }
+.log-num { font-family: 'SF Mono','Menlo',monospace; color: #3a3a3c; }
+.log-msg { color: #6e6e73; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.log-status { text-align: right; font-weight: 600; }
+.log-ok   { color: #34c759; }
+.log-err  { color: #ff3b30; }
+.log-wait { color: #ff9f0a; }
+
+.stats-bar { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 12px; }
+.stat-box { background: #f9f9fb; border: 1px solid #e5e5ea; border-radius: 10px; padding: 10px; text-align: center; }
+.stat-num { font-size: 22px; font-weight: 700; font-family: 'SF Mono','Menlo',monospace; }
+.stat-lbl { font-size: 11px; color: #8e8e93; margin-top: 2px; }
+.stat-ok  .stat-num { color: #34c759; }
+.stat-err .stat-num { color: #ff3b30; }
+.stat-tot .stat-num { color: #0071e3; }
+
+/* Dedup */
+.toggle-row { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+.toggle-switch { position: relative; width: 40px; height: 22px; flex-shrink: 0; }
+.toggle-switch input { opacity: 0; width: 0; height: 0; }
+.toggle-slider { position: absolute; cursor: pointer; inset: 0; background: #d2d2d7; border-radius: 22px; transition: .2s; }
+.toggle-slider:before { position: absolute; content: ''; height: 16px; width: 16px; left: 3px; bottom: 3px; background: #fff; border-radius: 50%; transition: .2s; }
+input:checked + .toggle-slider { background: #0071e3; }
+input:checked + .toggle-slider:before { transform: translateX(18px); }
+.toggle-label { font-size: 13px; font-weight: 500; color: #3a3a3c; }
+.dedup-body { display: none; }
+.dedup-body.show { display: block; }
+
+/* Page sections */
+.page { display: none; }
+.page.active { display: block; }
+
+.section-gap { margin-top: 8px; }
+
+.footer { margin-top: 20px; font-size: 11px; color: #8e8e93; text-align: center; line-height: 1.6; }
+
+/* Delay control */
+.delay-row { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; font-size: 13px; color: #3a3a3c; }
+.delay-row input[type=range] { flex: 1; accent-color: #0071e3; }
+.delay-val { font-family: 'SF Mono','Menlo',monospace; font-size: 12px; color: #0071e3; min-width: 50px; }
+
+/* Country code badge */
+.cc-badge { display: inline-flex; align-items: center; gap: 6px; background: #f5f0ff; border: 1px solid #af52de; border-radius: 8px; padding: 6px 12px; font-size: 13px; color: #6b21a8; font-weight: 600; margin-bottom: 14px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="logo">PHB Team</div>
+  <h1>PHB SMS 群发工具</h1>
+  <p class="subtitle">账号筛选 · 去重 · 自动匹配短信模板 · BlueBirdTele 群发</p>
+
+  <!-- Tab nav -->
+  <div class="tab-nav">
+    <button class="tab-nav-btn active" onclick="switchTab('filter')">① 筛选账号</button>
+    <button class="tab-nav-btn" onclick="switchTab('send')">② 发送短信</button>
+    <button class="tab-nav-btn" onclick="switchTab('limit')">③ 37号模板发送</button>
+  </div>
+
+  <!-- ══════════════════════════════════════════════
+       TAB 1: 筛选账号
+  ══════════════════════════════════════════════ -->
+  <div class="page active" id="tab-filter">
+
+    <!-- Platform -->
+    <div class="selector-group">
+      <div class="selector-label">平台（可不选）</div>
+      <div class="btn-row">
+        <button class="plat-btn" data-p="P-2"  onclick="togglePlat('P-2')">P-2</button>
+        <button class="plat-btn" data-p="D-9"  onclick="togglePlat('D-9')">D-9</button>
+        <button class="plat-btn" data-p="P-18" onclick="togglePlat('P-18')">P-18</button>
+      </div>
+    </div>
+
+    <!-- Type -->
+    <div class="selector-group">
+      <div class="selector-label">类型</div>
+      <div class="btn-row" id="mode-row">
+        <button class="pill-btn active" onclick="setMode('CZ-KSNB')">CZ-KSNB</button>
+        <button class="pill-btn" onclick="setMode('ZC-ND')">ZC-ND</button>
+        <button class="pill-btn" onclick="setMode('CR-YESBX')">CR-YESBX</button>
+        <button class="pill-btn" onclick="setMode('CTC-39')">CTC-39</button>
+      </div>
+    </div>
+
+    <!-- Filename preview -->
+    <div class="name-preview">
+      <span class="pre-label">文件名预览</span>
+      <span class="pre-val" id="name-preview-val">—</span>
+    </div>
+
+    <!-- Main card -->
+    <div class="card">
+      <div class="card-title">上传 Excel 文件</div>
+      <div class="divider"></div>
+      <div class="two-col">
+        <div>
+          <div class="drop-zone" id="drop-zone"
+            onclick="document.getElementById('file-input').click()"
+            ondragover="onDragOver(event)" ondragleave="onDragLeave()" ondrop="onDrop(event)">
+            <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#0071e3" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+            <p>点击或拖拽 Excel 文件</p>
+            <div class="hint">支持 .xlsx · .xls</div>
+          </div>
+          <input type="file" id="file-input" accept=".xlsx,.xls" onchange="onFileSelect(event)">
+          <div class="info-bar info-green" id="file-info">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#34c759" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            <span id="file-label"></span>
+          </div>
+          <div class="info-bar info-purple" id="col-detected">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#af52de" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            <span id="col-detected-label"></span>
+          </div>
+          <div class="info-bar info-orange" id="arb-info">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ff9f0a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <span id="arb-info-label"></span>
+          </div>
+        </div>
+        <!-- Manual numbers -->
+        <div class="num-panel">
+          <div class="num-panel-title">手动添加号码</div>
+          <div class="num-input-row">
+            <input class="num-input" id="num-input" type="text" placeholder="输入号码" onkeydown="if(event.key==='Enter')addNum()">
+            <button class="num-add-btn" onclick="addNum()">+</button>
+          </div>
+          <div class="num-list" id="num-list"></div>
+          <div class="num-count" id="num-count">共 0 个</div>
+        </div>
+      </div>
+
+      <button class="action-btn btn-blue" id="run-btn" onclick="runExtract()" disabled>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        筛选并生成文件
+      </button>
+      <div class="progress" id="prog1"><div class="prog-label" id="prog1-label">处理中…</div><div class="prog-wrap"><div class="prog-bar prog-blue" id="prog1-bar"></div></div></div>
+      <div class="result-box" id="result1"><div class="result-msg" id="result1-msg"></div><div class="result-sub" id="result1-sub"></div><div id="result1-btns"></div></div>
+      <div class="error-box" id="error1"></div>
+    </div>
+
+    <!-- Dedup card -->
+    <div class="card">
+      <div class="card-title">历史去重</div>
+      <div class="divider"></div>
+      <div class="toggle-row">
+        <label class="toggle-switch"><input type="checkbox" id="dedup-toggle" onchange="toggleDedup()"><span class="toggle-slider"></span></label>
+        <span class="toggle-label">启用历史去重（上传昨天已导出的 TXT）</span>
+      </div>
+      <div class="dedup-body" id="dedup-body">
+        <div class="drop-zone" id="hist-drop" onclick="document.getElementById('hist-input').click()" ondragover="onDragOverHist(event)" ondragleave="onDragLeaveHist()" ondrop="onDropHist(event)">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#8e8e93" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          <p>上传昨天的 TXT 文件</p>
+          <div class="hint">每行一个账号</div>
+        </div>
+        <input type="file" id="hist-input" accept=".txt" onchange="onHistSelect(event)">
+        <div class="info-bar info-green" id="hist-info"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#34c759" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><span id="hist-label"></span></div>
+      </div>
+    </div>
+
+  </div><!-- /tab-filter -->
+
+  <!-- ══════════════════════════════════════════════
+       TAB 2: 发送短信
+  ══════════════════════════════════════════════ -->
+  <div class="page" id="tab-send">
+
+    <!-- Platform + Type (mirrors tab1, read-only display) -->
+    <div class="card">
+      <div class="card-title">当前配置</div>
+      <div class="divider"></div>
+      <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px;">
+        <span id="send-plat-badge" style="padding:6px 14px;border-radius:8px;font-size:13px;font-weight:600;background:#fed7aa;color:#c2410c;">平台：未选</span>
+        <span id="send-mode-badge" style="padding:6px 14px;border-radius:8px;font-size:13px;font-weight:600;background:#e8f4ff;color:#0071e3;">类型：CZ-KSNB</span>
+      </div>
+      <div class="cc-badge">🌏 国码：+63（菲律宾）· 号码无需加63</div>
+
+      <!-- Template preview -->
+      <div class="template-preview">
+        <div class="tp-label">自动匹配短信模板（随机轮换）</div>
+        <div class="tp-text" id="tpl-preview">请先在「筛选账号」页面选择平台和类型</div>
+        <div class="tp-num" id="tpl-count"></div>
+      </div>
+
+      <!-- Phone list source -->
+      <div style="margin-bottom:14px;">
+        <div class="selector-label" style="margin-bottom:8px;">号码来源</div>
+        <div class="btn-row">
+          <button class="pill-btn active" id="src-extracted" onclick="setSrc('extracted')">使用筛选结果</button>
+          <button class="pill-btn" id="src-upload" onclick="setSrc('upload')">上传 TXT 文件</button>
+        </div>
+      </div>
+
+      <div id="upload-panel" style="display:none;">
+        <div class="drop-zone" id="send-drop" onclick="document.getElementById('send-file-input').click()" ondragover="onDragOverSend(event)" ondragleave="onDragLeaveSend()" ondrop="onDropSend(event)">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#8e8e93" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          <p>上传号码 TXT 文件</p>
+          <div class="hint">每行一个号码</div>
+        </div>
+        <input type="file" id="send-file-input" accept=".txt" onchange="onSendFileSelect(event)">
+        <div class="info-bar info-green" id="send-file-info"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#34c759" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><span id="send-file-label"></span></div>
+      </div>
+
+      <!-- Delay -->
+      <div class="selector-label" style="margin-bottom:8px;">发送间隔</div>
+      <div class="delay-row">
+        <span>慢</span>
+        <input type="range" id="delay-slider" min="500" max="5000" step="100" value="1000" oninput="updateDelay()">
+        <span>快</span>
+        <span class="delay-val" id="delay-label">1.0 秒</span>
+      </div>
+
+      <!-- Send button -->
+      <div style="display:flex;gap:10px;">
+        <button class="action-btn btn-green" id="send-btn" onclick="startSend()" disabled style="flex:1;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          开始发送
+        </button>
+        <button class="action-btn btn-red" id="stop-btn" onclick="stopSend()" disabled style="flex:0 0 auto;width:100px;">停止</button>
+      </div>
+
+      <div class="progress" id="prog-send"><div class="prog-label" id="prog-send-label">发送中…</div><div class="prog-wrap"><div class="prog-bar prog-green" id="prog-send-bar"></div></div></div>
+
+      <!-- Stats -->
+      <div class="stats-bar" id="send-stats" style="display:none;">
+        <div class="stat-box stat-tot"><div class="stat-num" id="stat-total">0</div><div class="stat-lbl">总数</div></div>
+        <div class="stat-box stat-ok"><div class="stat-num" id="stat-ok">0</div><div class="stat-lbl">成功</div></div>
+        <div class="stat-box stat-err"><div class="stat-num" id="stat-fail">0</div><div class="stat-lbl">失败</div></div>
+      </div>
+
+      <!-- Log -->
+      <div class="sms-log" id="sms-log">
+        <div class="sms-log-header">
+          <span>发送日志</span>
+          <span id="log-count" style="font-size:11px;color:#8e8e93;">0 条</span>
+        </div>
+        <div id="log-rows"></div>
+      </div>
+      <div class="error-box" id="error-send"></div>
+    </div>
+
+  </div><!-- /tab-send -->
+
+  <!-- ══════════════════════════════════════════════
+       TAB 3: 第37号模板发送
+  ══════════════════════════════════════════════ -->
+  <div class="page" id="tab-limit">
+    <div class="card">
+      <div class="card-title">第37号模板 · Limit Reached 发送</div>
+      <div class="divider"></div>
+      <div class="cc-badge">🌏 国码：+63（菲律宾）· 号码无需加63</div>
+
+      <!-- Platform select for template 37 -->
+      <div class="selector-group">
+        <div class="selector-label">平台（决定模板内容）</div>
+        <div class="btn-row">
+          <button class="plat-btn" data-p="P-2"  id="lp-P-2"  onclick="toggleLimitPlat('P-2')">P-2</button>
+          <button class="plat-btn" data-p="D-9"  id="lp-D-9"  onclick="toggleLimitPlat('D-9')">D-9</button>
+        </div>
+      </div>
+
+      <!-- Template 37 preview -->
+      <div class="template-preview" style="margin-bottom:16px;">
+        <div class="tp-label">第37号模板内容</div>
+        <div class="tp-text" id="limit-tpl-preview">请选择平台</div>
+      </div>
+
+      <div class="two-col">
+        <!-- Upload TXT -->
+        <div>
+          <div class="selector-label" style="margin-bottom:8px;">号码来源</div>
+          <div class="drop-zone" id="limit-drop" onclick="document.getElementById('limit-file-input').click()" ondragover="onDragOverLimit(event)" ondragleave="onDragLeaveLimit()" ondrop="onDropLimit(event)">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#8e8e93" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            <p>上传 TXT 号码文件</p>
+            <div class="hint">每行一个号码</div>
+          </div>
+          <input type="file" id="limit-file-input" accept=".txt" onchange="onLimitFileSelect(event)">
+          <div class="info-bar info-green" id="limit-file-info"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#34c759" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><span id="limit-file-label"></span></div>
+        </div>
+        <!-- Manual numbers for limit tab -->
+        <div class="num-panel">
+          <div class="num-panel-title">手动添加号码</div>
+          <div class="num-input-row">
+            <input class="num-input" id="limit-num-input" type="text" placeholder="输入号码" onkeydown="if(event.key==='Enter')addLimitNum()">
+            <button class="num-add-btn" onclick="addLimitNum()">+</button>
+          </div>
+          <div class="num-list" id="limit-num-list"></div>
+          <div class="num-count" id="limit-num-count">共 0 个</div>
+        </div>
+      </div>
+
+      <!-- Delay -->
+      <div class="selector-label" style="margin-bottom:8px;margin-top:4px;">发送间隔</div>
+      <div class="delay-row">
+        <span>慢</span>
+        <input type="range" id="limit-delay-slider" min="500" max="5000" step="100" value="1000" oninput="updateLimitDelay()">
+        <span>快</span>
+        <span class="delay-val" id="limit-delay-label">1.0 秒</span>
+      </div>
+
+      <div style="display:flex;gap:10px;">
+        <button class="action-btn btn-green" id="limit-send-btn" onclick="startLimitSend()" disabled style="flex:1;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          开始发送第37号模板
+        </button>
+        <button class="action-btn btn-red" id="limit-stop-btn" onclick="stopLimitSend()" disabled style="flex:0 0 auto;width:100px;">停止</button>
+      </div>
+
+      <div class="progress" id="prog-limit"><div class="prog-label" id="prog-limit-label">发送中…</div><div class="prog-wrap"><div class="prog-bar prog-green" id="prog-limit-bar"></div></div></div>
+
+      <div class="stats-bar" id="limit-stats" style="display:none;">
+        <div class="stat-box stat-tot"><div class="stat-num" id="lstat-total">0</div><div class="stat-lbl">总数</div></div>
+        <div class="stat-box stat-ok"><div class="stat-num" id="lstat-ok">0</div><div class="stat-lbl">成功</div></div>
+        <div class="stat-box stat-err"><div class="stat-num" id="lstat-fail">0</div><div class="stat-lbl">失败</div></div>
+      </div>
+
+      <div class="sms-log" id="limit-log">
+        <div class="sms-log-header"><span>发送日志</span><span id="limit-log-count" style="font-size:11px;color:#8e8e93;">0 条</span></div>
+        <div id="limit-log-rows"></div>
+      </div>
+      <div class="error-box" id="error-limit"></div>
+    </div>
+  </div><!-- /tab-limit -->
+
+  <div class="footer">
+    文件仅在本地处理，不上传至任何服务器 · 短信通过 BlueBirdTele API 发送<br>
+    PHB Team · SMS群发工具 v1.0
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════
+// CONFIG
+// ══════════════════════════════════════════════════════════
+const API_URL  = 'https://phb-sms-proxy.mcc97644.workers.dev';
+const API_ID   = 'oz9tKPHR';
+const API_PWD  = 'ieoHX6pC';
+const COUNTRY  = '63'; // Philippines country code
+
+// ══════════════════════════════════════════════════════════
+// TEMPLATES
+// P222: rows 1-6→CZ-KSNB, 7-12→ZC-ND, 15-18→CR-YESBX, 25-36→CTC-39, 37→limit
+// D9D9: same mapping
+// ══════════════════════════════════════════════════════════
+const TEMPLATES = {
+  'P-2': {
+    'CZ-KSNB': [
+      "Boss, may balance ka pa sa P222 mula kahapon-hindi mo pa nagamit! Subukan ang swerte mo ngayon: https://p222sms.com",
+      "Na-deposit mo na pero di ka pa naglalaro-sayang ang pera. Isang taya lang, simulan mo na: https://p222sms.com",
+      "Idol, naiwan mo ang balance mo sa P222. Isang spin lang, baka panalo ka na: https://p222sms.com",
+      "Ready na ang balance mo-bawat taya may rebate pa. Mas naglalaro ka, mas malaki ang balik: https://p222sms.com",
+      "Boss, nasa account mo na ang pera-kulang na lang ang taya. Gamitin mo, baka ikaw ang susunod na panalo: https://p222sms.com",
+      "Balance mo sa P222 ready na-laro o i-withdraw, ikaw bahala. Pero sayang kung di subukan: https://p222sms.com"
+    ],
+    'ZC-ND': [
+      "Boss, naka-sign up ka na pero di pa nag-top up? May libreng treasure box ka-login lang, claim mo na: https://p222sms.com",
+      "Uy, reserved pa ang welcome reward mo sa P222! First deposit lang, may extra bonus ka na. Tara: https://p222sms.com",
+      "Kumusta po! May first deposit bonus pa rin sa P222 para sa inyo. Subukan po ngayon: https://p222sms.com",
+      "Bagong member ka pero di mo pa na-try? May mystery bonus ka pa hanggang P88,888 sa unang mga araw mo: https://p222sms.com",
+      "Maraming bagong players ang nanalo sa P222 ngayong linggo-subukan mo rin ang swerte mo: https://p222sms.com",
+      "Maliit na simula, malaking laro-first deposit may welcome reward at daily red envelope. Login: https://p222sms.com"
+    ],
+    'CR-YESBX': [
+      "Hindi lang ikaw-marami ring bumabalik ngayon. May daily rescue hanggang 25% para sa pagbangon mo: https://p222sms.com",
+      "Idol, may balik sa talo mo kahapon-Daily Rescue at Weekly cash back naghihintay. Claim mo: https://p222sms.com",
+      "Kahapon tough, pero may bounce back ka ngayon-rescue bonus sa P222. Balik ka lang: https://p222sms.com",
+      "Boss, ibinabalik namin ang part ng talo mo-hanggang 25% rescue today. Subukan ulit: https://p222sms.com"
+    ],
+    'CTC-39': [
+      "Kabayan, may Daily Rescue hanggang 25% at Weekly cash back sa P222-para sa pagbabalik mo. Tara na: https://p222sms.com",
+      "Miss namin kayo sa P222 po! May espesyal na comeback bonus para sa inyo. Login: https://p222sms.com",
+      "Boss, matagal ka nang away-may rescue bonus at comeback reward naghihintay. Balik ka na: https://p222sms.com",
+      "Idol, may Daily Rescue at Weekly cash back sa P222 para sa iyo. Bumalik, subukan ulit ang swerte: https://p222sms.com",
+      "Pasensya po sa nangyari-may espesyal na comeback bonus kami sa P222. Claim ngayon: https://p222sms.com",
+      "Boss, naka-reserve pa ang balik-bonus mo sa P222. Bumalik ka, i-claim bago mawala: https://p222sms.com",
+      "Boss, miss ka na sa P222! May bagong promo para sa pagbabalik mo. Claim dito: https://p222sms.com",
+      "Matagal ka nang di bumabalik, Idol. May bonus kang hindi pa nagagamit sa P222. Check: https://p222sms.com",
+      "Live na ang bagong event sa P222-red envelope kada araw at rebate sa bawat taya. Sali: https://p222sms.com",
+      "Kabayan, may bagong promo na kakaganda para sa iyo sa P222! Balik ka, subukan: https://p222sms.com",
+      "Uy, miss na miss ka na sa P222! May daily red envelope at rebate ngayon. Tara: https://p222sms.com",
+      "May reward na naghihintay para sa iyo-balik sa P222 at i-claim ang bonus mo: https://p222sms.com"
+    ],
+    'LIMIT': "Hi po! Limit reached na sa account na ito. Try another option po. Check your message on https://p222sms.com"
+  },
+  'D-9': {
+    'CZ-KSNB': [
+      "Boss, may balance ka pa sa D9D9 mula kahapon-hindi mo pa nagamit! Subukan ang swerte mo ngayon: https://d9d9s8f.com",
+      "Na-deposit mo na pero di ka pa naglalaro-sayang ang pera. Isang taya lang, simulan mo na: https://d9d9fe9.com",
+      "Idol, naiwan mo ang balance mo sa D9D9. Isang spin lang, baka panalo ka na: https://d9d9pd2.com",
+      "Ready na ang balance mo-bawat taya may rebate pa. Mas naglalaro ka, mas malaki ang balik: https://d9d9sms77.com",
+      "Boss, nasa account mo na ang pera-kulang na lang ang taya. Gamitin mo, baka ikaw ang susunod na panalo: https://d9d9sms22.com",
+      "Balance mo sa D9D9 ready na-laro o i-withdraw, ikaw bahala. Pero sayang kung di subukan: https://d9d9s8f.com"
+    ],
+    'ZC-ND': [
+      "Boss, naka-sign up ka na pero di pa nag-top up? May libreng treasure box ka-login lang, claim mo na: https://d9d9fe9.com",
+      "Uy, reserved pa ang welcome reward mo sa D9D9! First deposit lang, may extra bonus ka na. Tara: https://d9d9pd2.com",
+      "Kumusta po! May first deposit bonus pa rin sa D9D9 para sa inyo. Subukan po ngayon: https://d9d9sms77.com",
+      "Bagong member ka pero di mo pa na-try? May mystery bonus ka pa hanggang P88,888 sa unang mga araw mo: https://d9d9sms22.com",
+      "Maraming bagong players ang nanalo sa D9D9 ngayong linggo-subukan mo rin ang swerte mo: https://d9d9s8f.com",
+      "Maliit na simula, malaking laro-first deposit may welcome reward at daily red envelope. Login: https://d9d9fe9.com"
+    ],
+    'CR-YESBX': [
+      "Hindi lang ikaw-marami ring bumabalik ngayon. May daily rescue hanggang 25% para sa pagbangon mo: https://d9d9sms22.com",
+      "Idol, may balik sa talo mo kahapon-Daily Rescue at Weekly cash back naghihintay. Claim mo https://d9d9s8f.com",
+      "Kahapon tough, pero may bounce back ka ngayon-rescue bonus sa D9D9. Balik ka lang: https://d9d9fe9.com",
+      "Boss, ibinabalik namin ang part ng talo mo-hanggang 25% rescue today. Subukan ulit: https://d9d9pd2.com"
+    ],
+    'CTC-39': [
+      "Kabayan, may Daily Rescue hanggang 25% at Weekly cash back sa D9D9-para sa pagbabalik mo. Tara na https://d9d9sms22.com",
+      "Miss namin kayo sa D9D9 po! May espesyal na comeback bonus para sa inyo. Login: https://d9d9s8f.com",
+      "Boss, matagal ka nang away-may rescue bonus at comeback reward naghihintay. Balik ka na: https://d9d9fe9.com",
+      "Idol, may Daily Rescue at Weekly cash back sa D9D9 para sa iyo. Bumalik, subukan ulit ang swerte https://d9d9pd2.com",
+      "Pasensya po sa nangyari-may espesyal na comeback bonus kami sa D9D9. Claim ngayon: https://d9d9sms77.com",
+      "Boss, naka-reserve pa ang balik-bonus mo sa D9D9. Bumalik ka, i-claim bago mawala: https://d9d9sms22.com",
+      "Boss, miss ka na sa D9D9! May bagong promo para sa pagbabalik mo. Claim dito: https://d9d9s8f.com",
+      "Matagal ka nang di bumabalik, Idol. May bonus kang hindi pa nagagamit sa D9D9. Check: https://d9d9fe9.com",
+      "Live na ang bagong event sa D9D9-red envelope kada araw at rebate sa bawat taya. Sali: https://d9d9pd2.com",
+      "Kabayan, may bagong promo na kakaganda para sa iyo sa D9D9! Balik ka, subukan: https://d9d9sms77.com",
+      "Uy, miss na miss ka na sa D9D9! May daily red envelope at rebate ngayon. Tara: https://d9d9sms22.com",
+      "May reward na naghihintay para sa iyo-balik sa D9D9 at i-claim ang bonus mo: https://d9d9s8f.com"
+    ],
+    'LIMIT': "Hi po! Limit reached na sa account na ito. Try another option po. Check your message on https://d9d9fe9.com"
+  }
+};
+
+// ══════════════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════════════
+let currentPlat = '';
+let currentMode = 'CZ-KSNB';
+let workbook = null;
+let extractedAccounts = [];
+let manualNums = JSON.parse(localStorage.getItem('phb_manual_nums') || '[]');
+let historyNums = new Set();
+let dedupEnabled = false;
+let sendNums = []; // phones for tab2
+let sendSrc = 'extracted';
+let uploadedSendNums = [];
+let sendRunning = false;
+let sendStopped = false;
+let limitPlat = '';
+let limitNums = [];
+let limitUploadedNums = [];
+let limitManualNums = JSON.parse(localStorage.getItem('phb_limit_nums') || '[]');
+let limitRunning = false;
+let limitStopped = false;
+
+const ACCT_EXACT    = ['账号','帐号','登录账号','登录帐号','account','login account','用户账号'];
+const ACCT_CONTAINS = ['账号','帐号','account'];
+const EXCLUDE_KW    = ['用户id','userid','uid','代理id','agentid','上级','邀请','id'];
+const HIER_KW       = ['用户层级','层级','user level','level','user_level'];
+const ARB_KW        = '套利';
+
+// ══════════════════════════════════════════════════════════
+// HELPERS
+// ══════════════════════════════════════════════════════════
+function today() {
+  const d = new Date();
+  return String(d.getMonth()+1).padStart(2,'0') + String(d.getDate()).padStart(2,'0');
+}
+function buildName() {
+  return currentPlat.replace('-','') + currentMode + today();
+}
+function show(id)      { const e=document.getElementById(id); if(e) e.style.display='flex'; }
+function showBlock(id) { const e=document.getElementById(id); if(e) e.style.display='block'; }
+function hide(id)      { const e=document.getElementById(id); if(e) e.style.display='none'; }
+function getRandTemplate(plat, mode) {
+  const list = TEMPLATES[plat]?.[mode];
+  if (!list || !list.length) return null;
+  return list[Math.floor(Math.random() * list.length)];
+}
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// ══════════════════════════════════════════════════════════
+// TAB SWITCHING
+// ══════════════════════════════════════════════════════════
+function switchTab(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  event.currentTarget.classList.add('active');
+  if (name === 'send') updateSendTab();
+}
+
+// ══════════════════════════════════════════════════════════
+// PLATFORM + MODE
+// ══════════════════════════════════════════════════════════
+function togglePlat(p) {
+  currentPlat = (currentPlat === p) ? '' : p;
+  document.querySelectorAll('.plat-btn:not([id^="lp-"])').forEach(b => {
+    b.classList.toggle('active', b.dataset.p === currentPlat);
+  });
+  updatePreview();
+}
+function setMode(m) {
+  currentMode = m;
+  document.querySelectorAll('#mode-row .pill-btn').forEach(b => {
+    b.classList.toggle('active', b.textContent.trim() === m);
+  });
+  updatePreview();
+}
+function updatePreview() {
+  document.getElementById('name-preview-val').textContent = buildName();
+}
+updatePreview();
+
+function updateSendTab() {
+  document.getElementById('send-plat-badge').textContent = '平台：' + (currentPlat || '未选');
+  document.getElementById('send-mode-badge').textContent = '类型：' + currentMode;
+
+  if (currentPlat && TEMPLATES[currentPlat]?.[currentMode]) {
+    const list = TEMPLATES[currentPlat][currentMode];
+    document.getElementById('tpl-preview').textContent = list[0];
+    document.getElementById('tpl-count').textContent = `共 ${list.length} 条模板，发送时随机轮换`;
+  } else {
+    document.getElementById('tpl-preview').textContent = currentPlat ? '该平台暂无此类型模板' : '请先选择平台';
+    document.getElementById('tpl-count').textContent = '';
+  }
+  updateSendBtn();
+}
+
+// ══════════════════════════════════════════════════════════
+// FILTER TAB — manual numbers
+// ══════════════════════════════════════════════════════════
+function saveNums() { localStorage.setItem('phb_manual_nums', JSON.stringify(manualNums)); }
+function renderNums() {
+  const list = document.getElementById('num-list');
+  list.innerHTML = '';
+  manualNums.forEach((n, i) => {
+    const tag = document.createElement('div'); tag.className = 'num-tag';
+    tag.innerHTML = `<span>${n}</span><button class="num-del" onclick="delNum(${i})">×</button>`;
+    list.appendChild(tag);
+  });
+  document.getElementById('num-count').textContent = `共 ${manualNums.length} 个`;
+}
+function addNum() {
+  const inp = document.getElementById('num-input');
+  const val = inp.value.trim();
+  if (!val) return;
+  val.split(/[,，\s]+/).map(s=>s.trim()).filter(Boolean).forEach(p => { if (!manualNums.includes(p)) manualNums.push(p); });
+  inp.value = ''; saveNums(); renderNums();
+}
+function delNum(i) { manualNums.splice(i,1); saveNums(); renderNums(); }
+renderNums();
+
+// ══════════════════════════════════════════════════════════
+// FILTER TAB — file handling
+// ══════════════════════════════════════════════════════════
+function onDragOver(e)  { e.preventDefault(); document.getElementById('drop-zone').classList.add('drag'); }
+function onDragLeave()  { document.getElementById('drop-zone').classList.remove('drag'); }
+function onDrop(e)      { e.preventDefault(); onDragLeave(); handleFile(e.dataTransfer.files[0]); }
+function onFileSelect(e){ handleFile(e.target.files[0]); }
+
+function handleFile(file) {
+  if (!file) return;
+  hide('error1'); hide('result1'); hide('prog1'); hide('arb-info'); hide('col-detected');
+  document.getElementById('file-label').textContent = `${file.name}  (${(file.size/1024).toFixed(1)} KB)`;
+  show('file-info');
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      workbook = XLSX.read(e.target.result, { type:'binary' });
+      const ws = workbook.Sheets[workbook.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { header:1, defval:'' });
+      if (!rows.length) { showErr1('文件为空'); return; }
+      const headers = rows[0].map(h=>String(h).trim());
+      const acctCol = detectAcctCol(headers);
+      document.getElementById('col-detected-label').textContent = acctCol === -1
+        ? '⚠ 未找到账号列，将使用第一列'
+        : `已识别账号列：「${headers[acctCol]}」（第${acctCol+1}列）`;
+      document.getElementById('col-detected').className = 'info-bar ' + (acctCol === -1 ? 'info-orange' : 'info-purple');
+      show('col-detected');
+      const hierCol = detectHierCol(headers);
+      if (hierCol !== -1) {
+        const cnt = rows.slice(1).filter(r=>String(r[hierCol]||'').includes(ARB_KW)).length;
+        if (cnt > 0) { document.getElementById('arb-info-label').textContent = `检测到 ${cnt} 条套利层记录，导出时自动排除`; show('arb-info'); }
+      }
+      document.getElementById('run-btn').disabled = false;
+    } catch(err) { showErr1('文件解析失败：' + err.message); }
+  };
+  reader.readAsBinaryString(file);
+}
+
+function detectAcctCol(headers) {
+  const h = headers.map(x=>String(x).toLowerCase().trim());
+  for (let i=0;i<h.length;i++) if (ACCT_EXACT.includes(h[i]) && !EXCLUDE_KW.some(k=>h[i].includes(k))) return i;
+  for (let i=0;i<h.length;i++) if (ACCT_CONTAINS.some(k=>h[i].includes(k)) && !EXCLUDE_KW.some(k=>h[i].includes(k))) return i;
+  return 0;
+}
+function detectHierCol(headers) {
+  const h = headers.map(x=>String(x).toLowerCase().trim());
+  for (let i=0;i<h.length;i++) if (HIER_KW.some(k=>h[i].includes(k.toLowerCase()))) return i;
+  return -1;
+}
+
+// ══════════════════════════════════════════════════════════
+// FILTER TAB — dedup
+// ══════════════════════════════════════════════════════════
+function toggleDedup() {
+  dedupEnabled = document.getElementById('dedup-toggle').checked;
+  document.getElementById('dedup-body').classList.toggle('show', dedupEnabled);
+}
+function onDragOverHist(e) { e.preventDefault(); document.getElementById('hist-drop').classList.add('drag'); }
+function onDragLeaveHist() { document.getElementById('hist-drop').classList.remove('drag'); }
+function onDropHist(e)     { e.preventDefault(); onDragLeaveHist(); handleHistFile(e.dataTransfer.files[0]); }
+function onHistSelect(e)   { handleHistFile(e.target.files[0]); }
+function handleHistFile(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const lines = e.target.result.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
+    historyNums = new Set(lines);
+    document.getElementById('hist-label').textContent = `已加载：${file.name}，共 ${historyNums.size} 个历史账号`;
+    show('hist-info');
+  };
+  reader.readAsText(file,'utf-8');
+}
+
+// ══════════════════════════════════════════════════════════
+// FILTER TAB — extract & export
+// ══════════════════════════════════════════════════════════
+function showErr1(msg) { document.getElementById('error1').textContent='⚠ '+msg; show('error1'); hide('prog1'); }
+function setP1(pct,lbl) { showBlock('prog1'); document.getElementById('prog1-bar').style.width=pct+'%'; document.getElementById('prog1-label').textContent=lbl; }
+
+function runExtract() {
+  if (!workbook) return;
+  hide('error1'); hide('result1'); document.getElementById('run-btn').disabled=true;
+  try {
+    setP1(10,'读取数据…');
+    const ws = workbook.Sheets[workbook.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(ws, { header:1, defval:'' });
+    const headers = rows[0].map(h=>String(h).trim());
+    const dataRows = rows.slice(1);
+    const acctCol = detectAcctCol(headers);
+    const hierCol = detectHierCol(headers);
+
+    setP1(30,'过滤套利层…');
+    let filteredRows = dataRows; let arbRemoved=0;
+    if (hierCol !== -1) {
+      filteredRows = dataRows.filter(r => { const v=String(r[hierCol]||''); if(v.includes(ARB_KW)){arbRemoved++;return false;} return true; });
+    }
+
+    setP1(50,'提取账号…');
+    let accounts = [...new Set(filteredRows.map(r=>String(r[acctCol]||'').trim()).filter(a=>a&&a!=='undefined'&&a!=='0'))];
+
+    setP1(65,'历史去重…');
+    let dedupRemoved=0;
+    if (dedupEnabled && historyNums.size>0) {
+      const before=accounts.length; accounts=accounts.filter(a=>!historyNums.has(a)); dedupRemoved=before-accounts.length;
+    }
+
+    setP1(80,'合并手动号码…');
+    const acctSet=new Set(accounts); let manualAdded=[];
+    manualNums.forEach(n=>{ if(!acctSet.has(n)){acctSet.add(n);accounts.push(n);manualAdded.push(n);} });
+
+    if (!accounts.length) { showErr1('筛选后无账号可导出'); document.getElementById('run-btn').disabled=false; return; }
+
+    extractedAccounts = accounts;
+    setP1(90,'生成文件…');
+    const fname = buildName();
+
+    const txtBlob = new Blob([accounts.join('\n')], { type:'text/plain;charset=utf-8' });
+    const txtUrl  = URL.createObjectURL(txtBlob);
+
+    const newWs = XLSX.utils.aoa_to_sheet([headers,...filteredRows]);
+    const newWb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(newWb,newWs,workbook.SheetNames[0]);
+    const excelBlob = new Blob([XLSX.write(newWb,{bookType:'xlsx',type:'array'})],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    const excelUrl  = URL.createObjectURL(excelBlob);
+
+    setP1(100,'完成！');
+    let sub = [`账号共 ${accounts.length} 个`];
+    if (arbRemoved)    sub.push(`去除套利层 ${arbRemoved} 条`);
+    if (dedupRemoved)  sub.push(`历史去重 ${dedupRemoved} 条`);
+    if (manualAdded.length) sub.push(`手动添加 ${manualAdded.length} 个`);
+
+    document.getElementById('result1-msg').textContent = `✅ 已生成：${fname}`;
+    document.getElementById('result1-sub').textContent = sub.join(' · ');
+    document.getElementById('result1-btns').innerHTML = `
+      <button class="dl-btn" onclick="dl('${txtUrl}','${fname}.txt')">⬇ TXT 文件</button>
+      <button class="dl-btn dl-btn-blue" onclick="dl('${excelUrl}','${fname}.xlsx')">⬇ Excel 文件</button>
+    `;
+    showBlock('result1'); hide('prog1');
+    document.getElementById('run-btn').disabled=false;
+  } catch(err) { showErr1('处理失败：'+err.message); document.getElementById('run-btn').disabled=false; }
+}
+
+function dl(url,name) { const a=document.createElement('a'); a.href=url; a.download=name; document.body.appendChild(a); a.click(); document.body.removeChild(a); }
+
+// ══════════════════════════════════════════════════════════
+// SEND TAB
+// ══════════════════════════════════════════════════════════
+function setSrc(s) {
+  sendSrc=s;
+  document.getElementById('src-extracted').classList.toggle('active',s==='extracted');
+  document.getElementById('src-upload').classList.toggle('active',s==='upload');
+  document.getElementById('upload-panel').style.display = s==='upload' ? 'block' : 'none';
+  updateSendBtn();
+}
+function onDragOverSend(e) { e.preventDefault(); document.getElementById('send-drop').classList.add('drag'); }
+function onDragLeaveSend() { document.getElementById('send-drop').classList.remove('drag'); }
+function onDropSend(e)     { e.preventDefault(); onDragLeaveSend(); handleSendFile(e.dataTransfer.files[0]); }
+function onSendFileSelect(e){ handleSendFile(e.target.files[0]); }
+function handleSendFile(file) {
+  if (!file) return;
+  const reader=new FileReader();
+  reader.onload=e=>{ uploadedSendNums=e.target.result.split(/\r?\n/).map(l=>l.trim()).filter(Boolean); document.getElementById('send-file-label').textContent=`${file.name} · ${uploadedSendNums.length} 个号码`; show('send-file-info'); updateSendBtn(); };
+  reader.readAsText(file,'utf-8');
+}
+function updateSendBtn() {
+  const nums = sendSrc==='extracted' ? extractedAccounts : uploadedSendNums;
+  const hasNums = nums.length > 0;
+  const hasPlat = !!currentPlat;
+  const hasTpl  = !!(currentPlat && TEMPLATES[currentPlat]?.[currentMode]);
+  document.getElementById('send-btn').disabled = !(hasNums && hasPlat && hasTpl && !sendRunning);
+}
+function updateDelay() {
+  const v = document.getElementById('delay-slider').value;
+  document.getElementById('delay-label').textContent = (v/1000).toFixed(1)+' 秒';
+}
+
+async function startSend() {
+  const nums = (sendSrc==='extracted' ? extractedAccounts : uploadedSendNums).slice();
+  if (!nums.length) { document.getElementById('error-send').textContent='⚠ 没有号码'; show('error-send'); return; }
+  if (!currentPlat || !TEMPLATES[currentPlat]?.[currentMode]) { document.getElementById('error-send').textContent='⚠ 请选择平台和类型'; show('error-send'); return; }
+
+  hide('error-send');
+  sendRunning=true; sendStopped=false;
+  document.getElementById('send-btn').disabled=true;
+  document.getElementById('stop-btn').disabled=false;
+  document.getElementById('send-stats').style.display='grid';
+  document.getElementById('sms-log').style.display='block';
+  showBlock('prog-send');
+
+  let ok=0, fail=0;
+  const delay = parseInt(document.getElementById('delay-slider').value);
+  document.getElementById('stat-total').textContent=nums.length;
+
+  for (let i=0; i<nums.length; i++) {
+    if (sendStopped) break;
+    const num = nums[i];
+    const tpl = getRandTemplate(currentPlat, currentMode);
+    try {
+      const result = await sendSMS(num, tpl);
+      if (result.ok) { ok++; appendLog('send',num,tpl,'ok'); }
+      else           { fail++; appendLog('send',num,result.err,'err'); }
+    } catch(e) { fail++; appendLog('send',num,e.message,'err'); }
+
+    document.getElementById('stat-ok').textContent=ok;
+    document.getElementById('stat-fail').textContent=fail;
+    const pct = Math.round((i+1)/nums.length*100);
+    document.getElementById('prog-send-bar').style.width=pct+'%';
+    document.getElementById('prog-send-label').textContent=`发送中 ${i+1}/${nums.length}…`;
+    if (i < nums.length-1) await sleep(delay);
+  }
+
+  sendRunning=false;
+  document.getElementById('send-btn').disabled=false;
+  document.getElementById('stop-btn').disabled=true;
+  document.getElementById('prog-send-label').textContent = sendStopped ? `已停止 · 成功${ok} 失败${fail}` : `完成 · 成功${ok} 失败${fail}`;
+}
+function stopSend() { sendStopped=true; document.getElementById('stop-btn').disabled=true; }
+
+// ══════════════════════════════════════════════════════════
+// LIMIT TAB (template 37)
+// ══════════════════════════════════════════════════════════
+function toggleLimitPlat(p) {
+  limitPlat = (limitPlat===p)?'':p;
+  document.querySelectorAll('[id^="lp-"]').forEach(b=>b.classList.toggle('active',b.id==='lp-'+p && limitPlat===p));
+  const tpl = limitPlat ? TEMPLATES[limitPlat]?.['LIMIT'] : '';
+  document.getElementById('limit-tpl-preview').textContent = tpl || '请选择平台';
+  updateLimitBtn();
+}
+function saveLimitNums() { localStorage.setItem('phb_limit_nums', JSON.stringify(limitManualNums)); }
+function renderLimitNums() {
+  const list=document.getElementById('limit-num-list'); list.innerHTML='';
+  limitManualNums.forEach((n,i)=>{ const tag=document.createElement('div'); tag.className='num-tag'; tag.innerHTML=`<span>${n}</span><button class="num-del" onclick="delLimitNum(${i})">×</button>`; list.appendChild(tag); });
+  document.getElementById('limit-num-count').textContent=`共 ${limitManualNums.length} 个`;
+}
+function addLimitNum() {
+  const inp=document.getElementById('limit-num-input'); const val=inp.value.trim(); if(!val)return;
+  val.split(/[,，\s]+/).map(s=>s.trim()).filter(Boolean).forEach(p=>{if(!limitManualNums.includes(p))limitManualNums.push(p);});
+  inp.value=''; saveLimitNums(); renderLimitNums(); updateLimitBtn();
+}
+function delLimitNum(i) { limitManualNums.splice(i,1); saveLimitNums(); renderLimitNums(); updateLimitBtn(); }
+renderLimitNums();
+
+function onDragOverLimit(e) { e.preventDefault(); document.getElementById('limit-drop').classList.add('drag'); }
+function onDragLeaveLimit() { document.getElementById('limit-drop').classList.remove('drag'); }
+function onDropLimit(e)     { e.preventDefault(); onDragLeaveLimit(); handleLimitFile(e.dataTransfer.files[0]); }
+function onLimitFileSelect(e){ handleLimitFile(e.target.files[0]); }
+function handleLimitFile(file) {
+  if (!file) return;
+  const reader=new FileReader();
+  reader.onload=e=>{ limitUploadedNums=e.target.result.split(/\r?\n/).map(l=>l.trim()).filter(Boolean); document.getElementById('limit-file-label').textContent=`${file.name} · ${limitUploadedNums.length} 个号码`; show('limit-file-info'); updateLimitBtn(); };
+  reader.readAsText(file,'utf-8');
+}
+function updateLimitBtn() {
+  const nums = [...limitUploadedNums, ...limitManualNums];
+  document.getElementById('limit-send-btn').disabled = !(nums.length>0 && !!limitPlat && !limitRunning);
+}
+function updateLimitDelay() {
+  const v=document.getElementById('limit-delay-slider').value;
+  document.getElementById('limit-delay-label').textContent=(v/1000).toFixed(1)+' 秒';
+}
+
+async function startLimitSend() {
+  const nums=[...new Set([...limitUploadedNums,...limitManualNums])];
+  if (!nums.length||!limitPlat) return;
+  const tpl=TEMPLATES[limitPlat]['LIMIT'];
+  hide('error-limit');
+  limitRunning=true; limitStopped=false;
+  document.getElementById('limit-send-btn').disabled=true;
+  document.getElementById('limit-stop-btn').disabled=false;
+  document.getElementById('limit-stats').style.display='grid';
+  document.getElementById('limit-log').style.display='block';
+  showBlock('prog-limit');
+  document.getElementById('lstat-total').textContent=nums.length;
+  let ok=0,fail=0;
+  const delay=parseInt(document.getElementById('limit-delay-slider').value);
+  for (let i=0;i<nums.length;i++) {
+    if (limitStopped) break;
+    const num=nums[i];
+    try {
+      const r=await sendSMS(num,tpl);
+      if(r.ok){ok++;appendLog('limit',num,tpl,'ok');}
+      else{fail++;appendLog('limit',num,r.err,'err');}
+    } catch(e){fail++;appendLog('limit',num,e.message,'err');}
+    document.getElementById('lstat-ok').textContent=ok;
+    document.getElementById('lstat-fail').textContent=fail;
+    const pct=Math.round((i+1)/nums.length*100);
+    document.getElementById('prog-limit-bar').style.width=pct+'%';
+    document.getElementById('prog-limit-label').textContent=`发送中 ${i+1}/${nums.length}…`;
+    if (i<nums.length-1) await sleep(delay);
+  }
+  limitRunning=false;
+  document.getElementById('limit-send-btn').disabled=false;
+  document.getElementById('limit-stop-btn').disabled=true;
+  document.getElementById('prog-limit-label').textContent=limitStopped?`已停止 · 成功${ok} 失败${fail}`:`完成 · 成功${ok} 失败${fail}`;
+}
+function stopLimitSend() { limitStopped=true; document.getElementById('limit-stop-btn').disabled=true; }
+
+// ══════════════════════════════════════════════════════════
+// SMS API CALL
+// ══════════════════════════════════════════════════════════
+async function sendSMS(mobile, content) {
+  const payload = {
+    id: API_ID,
+    password: API_PWD,
+    mobile: mobile,
+    content: content,
+    country: COUNTRY
+  };
+  try {
+    const resp = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await resp.json();
+    // BlueBirdTele returns code 0 or "0" for success
+    if (data.code === 0 || data.code === '0' || data.status === 'success' || data.result === 0) {
+      return { ok: true };
+    }
+    return { ok: false, err: data.message || data.msg || JSON.stringify(data) };
+  } catch(e) {
+    return { ok: false, err: e.message };
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+// LOG
+// ══════════════════════════════════════════════════════════
+function appendLog(tab, num, msg, status) {
+  const rowsEl = document.getElementById(tab==='send'?'log-rows':'limit-log-rows');
+  const countEl = document.getElementById(tab==='send'?'log-count':'limit-log-count');
+  const row = document.createElement('div'); row.className='log-row';
+  const icon = status==='ok' ? '✓' : status==='err' ? '✗' : '…';
+  const cls  = status==='ok' ? 'log-ok' : status==='err' ? 'log-err' : 'log-wait';
+  const shortMsg = msg.length>50 ? msg.slice(0,48)+'…' : msg;
+  row.innerHTML = `<div class="log-num">${num}</div><div class="log-msg" title="${msg.replace(/"/g,'&quot;')}">${shortMsg}</div><div class="log-status ${cls}">${icon}</div>`;
+  rowsEl.insertBefore(row, rowsEl.firstChild);
+  const cnt = rowsEl.children.length;
+  countEl.textContent = `${cnt} 条`;
+}
+</script>
+</body>
+</html>
